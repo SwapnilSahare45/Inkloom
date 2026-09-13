@@ -1,0 +1,529 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public"]
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+  PENDING_REVIEW
+
+  @@schema("public")
+}
+
+model User {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email         String        @unique @db.VarChar(150)
+  fullName      String        @map("full_name") @db.VarChar(120)
+  avatarUrl     String?       @map("avatar_url") @db.VarChar(500)
+  accountStatus AccountStatus @default(ACTIVE) @map("account_status")
+  isArtist      Boolean       @default(false) @map("is_artist")
+  lastLoginAt   DateTime?     @map("last_login_at")
+  createdAt     DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt     DateTime?     @map("deleted_at") @db.Timestamptz
+
+  artistProfile      ArtistProfile?
+  commissionRequests CommissionRequest[]
+  orders             Order[]
+  conversations      Conversation[]
+  messages           Message[]
+  reviewsWritten     Review[]            @relation("ReviewsWritten")
+  reviewsReceived    Review[]            @relation("ReviewsReceived")
+  reportsFiled       Report[]            @relation("ReportsFiled")
+  reportsAgainst     Report[]            @relation("ReportsAgainst")
+  reportsReviewed    Report[]            @relation("ReportsReviewed")
+  notifications      Notification[]
+
+  @@map("users")
+  @@schema("public")
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  LIMITED
+  UNAVAILABLE
+
+  @@schema("public")
+}
+
+enum ProfileVisibility {
+  PUBLIC
+  UNLISTED
+  HIDDEN
+
+  @@schema("public")
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  IDENTITY_VERIFIED
+  VIDEO_VERIFIED
+  REJECTED
+
+  @@schema("public")
+}
+
+model ArtistProfile {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId              String             @unique @map("user_id") @db.Uuid
+  displayName         String             @map("display_name") @db.VarChar(120)
+  headline            String?            @db.VarChar(180)
+  bio                 String?            @db.Text
+  locationCity        String?            @map("location_city") @db.VarChar(100)
+  locationState       String?            @map("location_state") @db.VarChar(100)
+  countryCode         String             @default("IN") @map("country_code") @db.Char(2)
+  specialties         String[]
+  mediums             String[]
+  styles              String[]
+  commissionMinAmount Decimal?           @map("commission_min_amount") @db.Decimal(12, 2)
+  commissionMaxAmount Decimal?           @map("commission_max_amount") @db.Decimal(12, 2)
+  currency            String             @default("INR") @db.Char(3)
+  availabilityStatus  AvailabilityStatus @default(AVAILABLE) @map("availability_status")
+  responseTimeHours   Int?               @map("response_time_hours")
+  profileVisibility   ProfileVisibility  @default(PUBLIC) @map("profile_visibility")
+  verificationStatus  VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  verifiedAt          DateTime?          @map("verified_at") @db.Timestamptz
+  socialLinks         Json               @default("{}") @map("social_links")
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  user                User                 @relation(fields: [userId], references: [id])
+  portfolioItems      PortfolioItem[]
+  commissionProposals CommissionProposal[]
+  orders              Order[]
+  conversations       Conversation[]
+
+  @@map("artist_profiles")
+  @@schema("public")
+}
+
+enum ItemStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@schema("public")
+}
+
+model PortfolioItem {
+  id              String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  artistProfileId String     @map("artist_profile_id") @db.Uuid
+  title           String     @db.VarChar(160)
+  description     String?    @db.Text
+  artType         String     @map("art_type") @db.VarChar(50)
+  medium          String     @db.VarChar(80)
+  subject         String?    @db.VarChar(80)
+  style           String?    @db.VarChar(80)
+  yearCreated     Int?       @map("year_created") @db.SmallInt
+  dimensionsText  String?    @map("dimensions_text") @db.VarChar(80)
+  isOriginal      Boolean    @default(true) @map("is_original")
+  isFeatured      Boolean    @default(false) @map("is_featured")
+  displayOrder    Int        @default(0) @map("display_order")
+  status          ItemStatus @default(PUBLISHED)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime   @updatedAt @map("updated_at") @db.Timestamptz
+
+  artist         ArtistProfile    @relation(fields: [artistProfileId], references: [id], onDelete: Cascade)
+  portfolioMedia PortfolioMedia[]
+
+  @@index([artistProfileId, status, displayOrder])
+  @@map("portfolio_items")
+  @@schema("public")
+}
+
+enum MediaRole {
+  PRIMARY
+  SECONDARY
+  DETAIL
+  PROCESS
+
+  @@schema("public")
+}
+
+model PortfolioMedia {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  portfolioItemId String    @map("portfolio_item_id") @db.Uuid
+  url             String    @db.VarChar(500)
+  mediaRole       MediaRole @default(PRIMARY) @map("media_role")
+  altText         String?   @map("alt_text") @db.VarChar(220)
+  displayOrder    Int       @default(0) @map("display_order")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  portfolioItem PortfolioItem @relation(fields: [portfolioItemId], references: [id], onDelete: Cascade)
+
+  @@map("portfolio_media")
+  @@schema("public")
+}
+
+enum DeliveryType {
+  PHYSICAL
+  DIGITAL
+
+  @@schema("public")
+}
+
+enum RequestStatus {
+  DRAFT
+  OPEN
+  PAUSED
+  AWARDED
+  CANCELLED
+  EXPIRED
+  COMPLETED
+
+  @@schema("public")
+}
+
+enum Visibility {
+  PUBLIC
+  INVITED_ONLY
+  PRIVATE
+
+  @@schema("public")
+}
+
+model CommissionRequest {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  buyerId               String        @map("buyer_id") @db.Uuid
+  title                 String        @db.VarChar(180)
+  description           String        @db.Text
+  artType               String        @map("art_type") @db.VarChar(50)
+  mediumPreference      String?       @map("medium_preference") @db.VarChar(80)
+  subject               String?       @db.VarChar(120)
+  stylePreference       String?       @map("style_preference") @db.VarChar(100)
+  referenceInstructions String?       @map("reference_instructions") @db.Text
+  referenceImageUrls    String[]      @map("reference_image_urls")
+  budgetMin             Decimal?      @map("budget_min") @db.Decimal(12, 2)
+  budgetMax             Decimal       @map("budget_max") @db.Decimal(12, 2)
+  currency              String        @default("INR") @db.Char(3)
+  deadlineAt            DateTime?     @map("deadline_at") @db.Timestamptz
+  deliveryType          DeliveryType  @default(PHYSICAL) @map("delivery_type")
+  status                RequestStatus @default(OPEN)
+  visibility            Visibility    @default(PUBLIC)
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  buyer               User                 @relation(fields: [buyerId], references: [id])
+  commissionProposals CommissionProposal[]
+  orders              Order[]
+  conversations       Conversation[]
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([buyerId, createdAt(sort: Desc)])
+  @@map("commission_requests")
+  @@schema("public")
+}
+
+enum ProposalStatus {
+  DRAFT
+  SUBMITTED
+  SHORTLISTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+
+  @@schema("public")
+}
+
+model CommissionProposal {
+  id                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commissionRequestId String         @map("commission_request_id") @db.Uuid
+  artistProfileId     String         @map("artist_profile_id") @db.Uuid
+  quotedAmount        Decimal        @map("quoted_amount") @db.Decimal(12, 2)
+  currency            String         @default("INR") @db.Char(3)
+  estimatedDays       Int            @map("estimated_days") @db.SmallInt
+  proposalText        String         @map("proposal_text") @db.Text
+  revisionCount       Int            @default(1) @map("revision_count") @db.SmallInt
+  deliverableSummary  String         @map("deliverable_summary") @db.Text
+  expiresAt           DateTime?      @map("expires_at") @db.Timestamptz
+  status              ProposalStatus @default(SUBMITTED)
+  createdAt           DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime       @updatedAt @map("updated_at") @db.Timestamptz
+
+  commissionRequest CommissionRequest @relation(fields: [commissionRequestId], references: [id], onDelete: Cascade)
+  artist            ArtistProfile     @relation(fields: [artistProfileId], references: [id])
+  order             Order?
+
+  // Prevents duplicate live proposals from the same artist on one request.
+  @@unique([commissionRequestId, artistProfileId])
+  @@map("commission_proposals")
+  @@schema("public")
+}
+
+enum OrderStatus {
+  AWAITING_PAYMENT
+  PAID
+  IN_PROGRESS
+  AWAITING_CLIENT_REVIEW
+  REVISION_REQUESTED
+  COMPLETED
+  CANCELLED
+  DISPUTED
+  REFUNDED
+
+  @@schema("public")
+}
+
+model Order {
+  id                   String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commissionRequestId  String      @map("commission_request_id") @db.Uuid
+  commissionProposalId String      @unique @map("commission_proposal_id") @db.Uuid
+  buyerId              String      @map("buyer_id") @db.Uuid
+  artistProfileId      String      @map("artist_profile_id") @db.Uuid
+  agreedAmount         Decimal     @map("agreed_amount") @db.Decimal(12, 2)
+  currency             String      @default("INR") @db.Char(3)
+  scopeSnapshot        Json        @default("{}") @map("scope_snapshot")
+  startedAt            DateTime?   @map("started_at") @db.Timestamptz
+  dueAt                DateTime?   @map("due_at") @db.Timestamptz
+  completedAt          DateTime?   @map("completed_at") @db.Timestamptz
+  status               OrderStatus @default(AWAITING_PAYMENT)
+  createdAt            DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt            DateTime    @updatedAt @map("updated_at") @db.Timestamptz
+
+  commissionRequest  CommissionRequest     @relation(fields: [commissionRequestId], references: [id])
+  commissionProposal CommissionProposal    @relation(fields: [commissionProposalId], references: [id])
+  buyer              User                  @relation(fields: [buyerId], references: [id])
+  artist             ArtistProfile         @relation(fields: [artistProfileId], references: [id])
+  milestones         CommissionMilestone[]
+  conversations      Conversation[]
+  payment            Payment?
+  review             Review?
+
+  @@index([buyerId, status])
+  @@index([artistProfileId, status])
+  @@map("orders")
+  @@schema("public")
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  SUBMITTED
+  REVISION_REQUESTED
+  APPROVED
+  REJECTED
+  SKIPPED
+
+  @@schema("public")
+}
+
+model CommissionMilestone {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId         String          @map("order_id") @db.Uuid
+  sequenceNo      Int             @default(1) @map("sequence_no")
+  title           String          @db.VarChar(120)
+  description     String?         @db.Text
+  amount          Decimal?        @db.Decimal(12, 2)
+  deliverableUrls String[]        @map("deliverable_urls")
+  dueAt           DateTime?       @map("due_at") @db.Timestamptz
+  submittedAt     DateTime?       @map("submitted_at") @db.Timestamptz
+  approvedAt      DateTime?       @map("approved_at") @db.Timestamptz
+  status          MilestoneStatus @default(PENDING)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("commission_milestones")
+  @@schema("public")
+}
+
+enum ConversationStatus {
+  ACTIVE
+  ARCHIVED
+  BLOCKED
+
+  @@schema("public")
+}
+
+model Conversation {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  commissionRequestId String?            @map("commission_request_id") @db.Uuid
+  orderId             String?            @map("order_id") @db.Uuid
+  buyerId             String             @map("buyer_id") @db.Uuid
+  artistProfileId     String             @map("artist_profile_id") @db.Uuid
+  status              ConversationStatus @default(ACTIVE)
+  lastMessageAt       DateTime?          @map("last_message_at") @db.Timestamptz
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt           DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+
+  commissionRequest CommissionRequest? @relation(fields: [commissionRequestId], references: [id])
+  order             Order?             @relation(fields: [orderId], references: [id])
+  buyer             User               @relation(fields: [buyerId], references: [id])
+  artist            ArtistProfile      @relation(fields: [artistProfileId], references: [id])
+  messages          Message[]
+
+  @@map("conversations")
+  @@schema("public")
+}
+
+enum MessageType {
+  TEXT
+  FILE
+  SYSTEM
+
+  @@schema("public")
+}
+
+model Message {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId   String      @map("conversation_id") @db.Uuid
+  senderUserId     String      @map("sender_user_id") @db.Uuid
+  messageType      MessageType @default(TEXT) @map("message_type")
+  body             String?     @db.Text
+  attachmentUrl    String?     @map("attachment_url") @db.VarChar(500)
+  replyToMessageId String?     @map("reply_to_message_id") @db.Uuid
+  sentAt           DateTime    @default(now()) @map("sent_at") @db.Timestamptz
+  editedAt         DateTime?   @map("edited_at") @db.Timestamptz
+  deletedAt        DateTime?   @map("deleted_at") @db.Timestamptz
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderUserId], references: [id])
+
+  replyToMessage Message?  @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies        Message[] @relation("MessageReplies")
+
+  @@index([conversationId, sentAt(sort: Desc)])
+  @@map("messages")
+  @@schema("public")
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  CAPTURED
+  FAILED
+  REFUNDED
+
+  @@schema("public")
+}
+
+model Payment {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId           String        @unique @map("order_id") @db.Uuid
+  provider          String        @db.VarChar(30)
+  providerPaymentId String?       @unique @map("provider_payment_id") @db.VarChar(150)
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @default("INR") @db.Char(3)
+  status            PaymentStatus @default(CREATED)
+  paidAt            DateTime?     @map("paid_at") @db.Timestamptz
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+  @@schema("public")
+}
+
+model Review {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String   @unique @map("order_id") @db.Uuid
+  reviewerUserId String   @map("reviewer_user_id") @db.Uuid
+  revieweeUserId String   @map("reviewee_user_id") @db.Uuid
+  rating         Int      @db.SmallInt
+  title          String?  @db.VarChar(120)
+  body           String?  @db.Text
+  isVisible      Boolean  @default(true) @map("is_visible")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  order    Order @relation(fields: [orderId], references: [id])
+  reviewer User  @relation("ReviewsWritten", fields: [reviewerUserId], references: [id])
+  reviewee User  @relation("ReviewsReceived", fields: [revieweeUserId], references: [id])
+
+  @@index([revieweeUserId, isVisible])
+  @@map("reviews")
+  @@schema("public")
+}
+
+enum ReportTargetType {
+  USER
+  PORTFOLIO_ITEM
+  COMMISSION_REQUEST
+  MESSAGE
+  ORDER
+
+  @@schema("public")
+}
+
+enum ReportReasonCode {
+  SPAM
+  SCAM
+  ABUSE
+  COPYRIGHT
+  INAPPROPRIATE
+  OTHER
+
+  @@schema("public")
+}
+
+enum ReportStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  DISMISSED
+
+  @@schema("public")
+}
+
+model Report {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  reporterUserId  String           @map("reporter_user_id") @db.Uuid
+  targetUserId    String?          @map("target_user_id") @db.Uuid
+  targetType      ReportTargetType @map("target_type")
+  targetId        String           @map("target_id") @db.Uuid
+  reasonCode      ReportReasonCode @map("reason_code")
+  details         String?          @db.Text
+  status          ReportStatus     @default(OPEN)
+  reviewerUserId  String?          @map("reviewer_user_id") @db.Uuid
+  resolutionNotes String?          @map("resolution_notes") @db.Text
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  resolvedAt      DateTime?        @map("resolved_at") @db.Timestamptz
+
+  reporter User  @relation("ReportsFiled", fields: [reporterUserId], references: [id])
+  target   User? @relation("ReportsAgainst", fields: [targetUserId], references: [id])
+  reviewer User? @relation("ReportsReviewed", fields: [reviewerUserId], references: [id])
+
+  @@map("reports")
+  @@schema("public")
+}
+
+enum NotificationType {
+  PROPOSAL_RECEIVED
+  PROPOSAL_ACCEPTED
+  MESSAGE
+  PAYMENT
+  MILESTONE
+  REVIEW
+  REPORT_UPDATE
+
+  @@schema("public")
+}
+
+model Notification {
+  id         String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  type       NotificationType
+  title      String           @db.VarChar(180)
+  body       String?          @db.Text
+  entityType String?          @map("entity_type") @db.VarChar(40)
+  entityId   String?          @map("entity_id") @db.Uuid
+  readAt     DateTime?        @map("read_at") @db.Timestamptz
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@map("notifications")
+  @@schema("public")
+}
