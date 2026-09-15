@@ -4,6 +4,7 @@ import {
     createArtistProfileController,
     getAllArtistsController,
     getArtistByIdController,
+    getMyArtistProfileController,
     updateArtistAddressController,
     updateArtistAvailabilityStatusController,
     updateArtistBioController,
@@ -11,6 +12,8 @@ import {
     updateArtistDisplayNameController,
     updateArtistHeadlineController,
     updateArtistMediumsController,
+    updateArtistProfileVisibilityController,
+    updateArtistSocialLinksController,
     updateArtistSpecialtiesController,
     updateArtistStylesController,
 } from './artists.controller.js';
@@ -18,6 +21,7 @@ import {
 const router = Router();
 
 router.get('/all', getAllArtistsController);
+router.get('/me', authenticate, getMyArtistProfileController);
 router.get('/:artistId', getArtistByIdController);
 router.post('/', authenticate, createArtistProfileController);
 router.patch('/display-name', authenticate, updateArtistDisplayNameController);
@@ -37,5 +41,11 @@ router.patch(
     authenticate,
     updateArtistAvailabilityStatusController
 );
+router.patch(
+    '/profile-visibility',
+    authenticate,
+    updateArtistProfileVisibilityController
+);
+router.patch('/social-links', authenticate, updateArtistSocialLinksController);
 
 export default router;

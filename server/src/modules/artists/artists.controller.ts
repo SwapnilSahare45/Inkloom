@@ -9,6 +9,8 @@ import {
     UpdateDisplayNameSchema,
     UpdateHeadlineSchema,
     UpdateMediumsSchema,
+    UpdateProfileVisibilitySchema,
+    UpdateSocialLinksSchema,
     UpdateSpecialtiesSchema,
     UpdateStylesSchema,
 } from './artists.schema.js';
@@ -16,6 +18,7 @@ import {
     createArtistProfileService,
     getAllArtistsService,
     getArtistByIdService,
+    getMyArtistProfileService,
     updateArtistAddressService,
     updateArtistAvailabilityStatusService,
     updateArtistBioService,
@@ -23,6 +26,8 @@ import {
     updateArtistDisplayNameService,
     updateArtistHeadlineService,
     updateArtistMediumsService,
+    updateArtistProfileVisibilityService,
+    updateArtistSocialLinksService,
     updateArtistSpecialtiesService,
     updateArtistStylesService,
 } from './artists.service.js';
@@ -268,6 +273,61 @@ export async function updateArtistAvailabilityStatusController(
             result,
             'Your availability status updated successfully.'
         );
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateArtistProfileVisibilityController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const validatedInput = UpdateProfileVisibilitySchema.parse(req.body);
+        const result = await updateArtistProfileVisibilityService(
+            req.user!.id,
+            validatedInput
+        );
+        ApiResponse.success(
+            res,
+            result,
+            'Your profile visibility option updated successfully.'
+        );
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function updateArtistSocialLinksController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const validatedInput = UpdateSocialLinksSchema.parse(req.body);
+        const result = await updateArtistSocialLinksService(
+            req.user!.id,
+            validatedInput
+        );
+        ApiResponse.success(
+            res,
+            result,
+            'Your social links updated successfully.'
+        );
+    } catch (error) {
+        next(error);
+    }
+}
+
+export async function getMyArtistProfileController(
+    req: Request,
+    res: Response,
+    next: NextFunction
+) {
+    try {
+        const result = await getMyArtistProfileService(req.user!.id);
+        ApiResponse.success(res, result);
     } catch (error) {
         next(error);
     }

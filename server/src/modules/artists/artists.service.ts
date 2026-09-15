@@ -11,6 +11,8 @@ import type {
     UpdateDisplayNameInput,
     UpdateHeadlineInput,
     UpdateMediumsInput,
+    UpdateProfileVisibilityInput,
+    UpdateSocialLinksInput,
     UpdateSpecialtiesInput,
     UpdateStylesInput,
 } from './artists.schema.js';
@@ -408,4 +410,75 @@ export async function updateArtistAvailabilityStatusService(
     }
 
     return updatedArtistProfile;
+}
+
+export async function updateArtistProfileVisibilityService(
+    userId: string,
+    input: UpdateProfileVisibilityInput
+) {
+    const updatedArtistProfile = await prisma.artistProfile.update({
+        where: { userId },
+        data: { profileVisibility: input.profileVisibility },
+        select: {
+            id: true,
+            profileVisibility: true,
+        },
+    });
+
+    if (!updatedArtistProfile) {
+        throw AppError.notFound(
+            'Your artist profile does not exist.',
+            'ARTIST_NOT_FOUND'
+        );
+    }
+
+    return updatedArtistProfile;
+}
+
+export async function updateArtistSocialLinksService(
+    userId: string,
+    input: UpdateSocialLinksInput
+) {
+    const updatedArtistProfile = await prisma.artistProfile.update({
+        where: { userId },
+        data: { socialLinks: input.socialLinks },
+        select: {
+            id: true,
+            socialLinks: true,
+        },
+    });
+
+    if (!updatedArtistProfile) {
+        throw AppError.notFound(
+            'Your artist profile does not exist.',
+            'ARTIST_NOT_FOUND'
+        );
+    }
+
+    return updatedArtistProfile;
+}
+
+export async function getMyArtistProfileService(userId: string) {
+    const artistProfile = await prisma.artistProfile.findUnique({
+        where: { userId },
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    email: true,
+                    fullName: true,
+                    accountStatus: true,
+                },
+            },
+        },
+    });
+
+    if (!artistProfile) {
+        throw AppError.notFound(
+            'Your artist profile does not exist.',
+            'ARTIST_NOT_FOUND'
+        );
+    }
+
+    return artistProfile;
 }
