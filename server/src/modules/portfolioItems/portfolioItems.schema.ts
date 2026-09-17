@@ -1,4 +1,5 @@
 import z from 'zod';
+import { MediaRole } from '../../generated/prisma/enums.js';
 
 const currentYear = new Date().getFullYear();
 
@@ -51,6 +52,20 @@ const BaseDimensionsText = z
 
 const BaseIsOriginal = z.boolean().default(true);
 
+const BasePortfolioMedia = z.object({
+    url: z
+        .string()
+        .trim()
+        .pipe(z.url({ message: 'Invalid URL.' })),
+    mediaRole: z.enum(MediaRole).default('PRIMARY'),
+    altText: z
+        .string()
+        .trim()
+        .max(220, { message: 'Alt text must be 220 characters or fewer.' })
+        .nullable()
+        .optional(),
+});
+
 export const CreatePortfolioItemSchema = z.object({
     title: BaseTitle,
     description: BaseDescription.nullable().optional(),
@@ -61,12 +76,15 @@ export const CreatePortfolioItemSchema = z.object({
     yearCreated: BaseYearCreated.nullable().optional(),
     dimensionsText: BaseDimensionsText.nullable().optional(),
     isOriginal: BaseIsOriginal,
+    portfolioMedia: z.array(BasePortfolioMedia),
 });
 export type CreatePortfolioItemInput = z.infer<
     typeof CreatePortfolioItemSchema
 >;
 
-export const UpdatePortfolioItemSchema = CreatePortfolioItemSchema.partial();
+export const UpdatePortfolioItemSchema = CreatePortfolioItemSchema.omit({
+    portfolioMedia: true,
+}).partial();
 export type UpdatePortfolioItemInput = z.infer<
     typeof UpdatePortfolioItemSchema
 >;

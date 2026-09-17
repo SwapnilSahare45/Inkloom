@@ -21,6 +21,16 @@ export async function getMyPortfolioItemsService({
         skip: cursor ? 1 : 0,
         cursor: cursor ? { id: cursor } : undefined,
         where: { artistProfileId: artistId },
+        include: {
+            portfolioMedia: {
+                select: {
+                    id: true,
+                    url: true,
+                    mediaRole: true,
+                    altText: true,
+                },
+            },
+        },
         orderBy: {
             id: 'desc',
         },
@@ -49,6 +59,14 @@ export async function getMyPortfolioItemService(
                     headline: true,
                 },
             },
+            portfolioMedia: {
+                select: {
+                    id: true,
+                    url: true,
+                    mediaRole: true,
+                    altText: true,
+                },
+            },
         },
     });
 
@@ -66,6 +84,7 @@ export async function createPortfolioItemService(
     artistId: string,
     input: CreatePortfolioItemInput
 ) {
+    const { portfolioMedia, ...portfolioItemData } = input;
     const artist = await prisma.artistProfile.findUnique({
         where: {
             id: artistId,
@@ -89,7 +108,23 @@ export async function createPortfolioItemService(
     const createdItem = await prisma.portfolioItem.create({
         data: {
             artistProfileId: artistId,
-            ...input,
+            ...portfolioItemData,
+
+            portfolioMedia: {
+                createMany: {
+                    data: portfolioMedia,
+                },
+            },
+        },
+        include: {
+            portfolioMedia: {
+                select: {
+                    id: true,
+                    url: true,
+                    mediaRole: true,
+                    altText: true,
+                },
+            },
         },
     });
 
