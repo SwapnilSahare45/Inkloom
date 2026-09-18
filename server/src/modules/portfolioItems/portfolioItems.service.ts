@@ -39,8 +39,8 @@ export async function getMyPortfolioItemsService({
     let nextCursor: string | undefined = undefined;
 
     if (portfolioItems.length > limit) {
-        const nextItem = portfolioItems.pop();
-        nextCursor = nextItem?.id;
+        portfolioItems.pop();
+        nextCursor = portfolioItems[portfolioItems.length - 1].id;
     }
     return { portfolioItems, nextCursor };
 }
